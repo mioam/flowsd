@@ -177,7 +177,8 @@ def sd_flow(root_dir, viz_root_dir, model, img_list, alpha, device):
         else:
             image_sd = image_np
 
-        image_sd = api.img2img([Image.fromarray(np.uint8(image_sd*255))], )
+        res = api.img2img([Image.fromarray(np.uint8(image_sd*255))], )
+        image_sd = np.as_array(res.images[0]) / 255.
         plt.imsave(viz_fn, image_sd)
         image_pre = image
 
