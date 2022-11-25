@@ -196,9 +196,10 @@ if __name__ == '__main__':
     parser.add_argument('--start_idx', type=int, default=1100)     # starting index of the image sequence
     parser.add_argument('--end_idx', type=int, default=1120)    # ending index of the image sequence
     parser.add_argument('--viz_root_dir', default='../viz_results')
+    parser.add_argument('--cpu', action='store_true')
 
     args = parser.parse_args()
-    args.device = 'cpu'
+    args.device = 'cpu' if args.cpu else 'cuda'
     args.alpha = 0.3
 
     root_dir = args.root_dir
