@@ -103,7 +103,8 @@ def prepare_image(root_dir, viz_root_dir, fn, keep_size):
     image1 = frame_utils.read_gen(osp.join(root_dir, fn))
     image1 = np.array(image1).astype(np.uint8)[..., :3]
     if not keep_size:
-        dsize = compute_adaptive_image_size(image1.shape[0:2])
+        # dsize = compute_adaptive_image_size(image1.shape[0:2])
+        dsize = (1024, 576)
         image1 = cv2.resize(image1, dsize=dsize, interpolation=cv2.INTER_CUBIC)
     image1 = torch.from_numpy(image1).permute(2, 0, 1).float()
 
@@ -181,8 +182,8 @@ def sd_flow(root_dir, viz_root_dir, model, img_list, alpha, device):
 
         res = api.img2img([Image.fromarray(np.uint8(image_sd*255))],
                 denoising_strength=0.3,
-                width=1920,
-                height=1080,)
+                width=1024,
+                height=576,)
         image_sd = np.asarray(res.images[0]) / 255.
         plt.imsave(viz_fn, image_sd)
         image_pre = image
