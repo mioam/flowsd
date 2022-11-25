@@ -163,7 +163,7 @@ def sd_flow(root_dir, viz_root_dir, model, img_list, alpha, device):
     image_pre = None
     for fn in img_list:
         if device == 'cuda':
-            torch.cuda.empty_catch()
+            torch.cuda.empty_cache()
         print(f"processing {fn}...")
         image, viz_fn = prepare_image(root_dir, viz_root_dir, fn, True)
         image_np = image.permute(1,2,0).numpy() / 255
