@@ -96,56 +96,29 @@ def compute_adaptive_image_size(image_size):
 
     return image_size
 
-def prepare_image(root_dir, viz_root_dir, fn, keep_size):
+def prepare_image(root_dir, fn, img_size):
     print(f"preparing image...")
     print(f"root dir = {root_dir}, fn = {fn}")
 
     image1 = frame_utils.read_gen(osp.join(root_dir, fn))
     image1 = np.array(image1).astype(np.uint8)[..., :3]
-    if not keep_size:
+    if img_size is not None:
         # dsize = compute_adaptive_image_size(image1.shape[0:2])
-        dsize = (1024, 576)
-        image1 = cv2.resize(image1, dsize=dsize, interpolation=cv2.INTER_CUBIC)
+        # dsize = (1024, 576)
+        image1 = cv2.resize(image1, dsize=img_size, interpolation=cv2.INTER_CUBIC)
     image1 = torch.from_numpy(image1).permute(2, 0, 1).float()
 
 
-    dirname = osp.dirname(fn)
-    filename = osp.splitext(osp.basename(fn))[0]
+    # dirname = osp.dirname(fn)
+    # filename = osp.splitext(osp.basename(fn))[0]
 
-    viz_dir = osp.join(viz_root_dir, dirname)
-    if not osp.exists(viz_dir):
-        os.makedirs(viz_dir)
+    # viz_dir = osp.join(viz_root_dir, dirname)
+    # if not osp.exists(viz_dir):
+    #     os.makedirs(viz_dir)
 
-    viz_fn = osp.join(viz_dir, filename + '.png')
+    # viz_fn = osp.join(viz_dir, filename + '.png')
 
-    return image1, viz_fn
-
-# def prepare_image(root_dir, viz_root_dir, fn1, fn2, keep_size):
-#     print(f"preparing image...")
-#     print(f"root dir = {root_dir}, fn = {fn1}")
-
-#     image1 = frame_utils.read_gen(osp.join(root_dir, fn1))
-#     image2 = frame_utils.read_gen(osp.join(root_dir, fn2))
-#     image1 = np.array(image1).astype(np.uint8)[..., :3]
-#     image2 = np.array(image2).astype(np.uint8)[..., :3]
-#     if not keep_size:
-#         dsize = compute_adaptive_image_size(image1.shape[0:2])
-#         image1 = cv2.resize(image1, dsize=dsize, interpolation=cv2.INTER_CUBIC)
-#         image2 = cv2.resize(image2, dsize=dsize, interpolation=cv2.INTER_CUBIC)
-#     image1 = torch.from_numpy(image1).permute(2, 0, 1).float()
-#     image2 = torch.from_numpy(image2).permute(2, 0, 1).float()
-
-
-#     dirname = osp.dirname(fn1)
-#     filename = osp.splitext(osp.basename(fn1))[0]
-
-#     viz_dir = osp.join(viz_root_dir, dirname)
-#     if not osp.exists(viz_dir):
-#         os.makedirs(viz_dir)
-
-#     viz_fn = osp.join(viz_dir, filename + '.png')
-
-#     return image1, image2, viz_fn
+    return image1
 
 def build_model(device):
     print(f"building  model...")
@@ -158,18 +131,37 @@ def build_model(device):
 
     return model
 
-def sd_flow(root_dir, viz_root_dir, model, img_list, alpha, device):
+def gen_flow(root_dir, flow_dir, model, img_list, img_size, device):
+    if not osp.exists(flow_dir):
+        os.makedirs(flow_dir)
+    image_pre = None
+    for fn in img_list:
+        print(f"processing {fn}...")
+        image = prepare_image(root_dir, fn, img_size)
+        flow_fn = osp.join(flow_dir, osp.splitext(osp.basename(fn))[0] + '.npy')
+        if image_pre is not None:
+            flow = compute_flow(model, image_pre, image, None, device=device)
+            np.save(flow_fn, flow)
+        image_pre = image
+
+def sd_flow(root_dir, flow_dir, viz_dir, model, img_list, alpha, img_size, device):
+    if not osp.exists(viz_dir):
+        os.makedirs(viz_dir)
     api = webuiapi.WebUIApi()
     image_sd = None
     image_pre = None
     for fn in img_list:
-        if device == 'cuda':
-            torch.cuda.empty_cache()
         print(f"processing {fn}...")
-        image, viz_fn = prepare_image(root_dir, viz_root_dir, fn, True)
+        image = prepare_image(root_dir, fn, img_size)
+        viz_fn = osp.join(viz_dir, osp.splitext(osp.basename(fn))[0] + '.png')
+
         image_np = image.permute(1,2,0).numpy() / 255
         if image_pre is not None:
-            flow = compute_flow(model, image_pre, image, None, device=device)
+            if flow_dir is None:
+                flow = compute_flow(model, image_pre, image, None, device=device)
+            else:
+                flow_fn = osp.join(flow_dir, osp.splitext(osp.basename(fn))[0] + '.npy')
+                flow = np.load(flow_fn)
             # flow_img = flow_viz.flow_to_image(flow)
             # cv2.imwrite(viz_fn, flow_img[:, :, [2,1,0]])
             w, s = flow_forward(image_sd, flow)
@@ -188,30 +180,40 @@ def sd_flow(root_dir, viz_root_dir, model, img_list, alpha, device):
         plt.imsave(viz_fn, image_sd)
         image_pre = image
 
-def generate_list(dirname, start_idx, end_idx, step=1):
+def generate_list(start_idx, end_idx, step=1):
     img_list = []
     for i in range(start_idx, end_idx+1, step):
-        img1 = osp.join(dirname, f'{i:06}.png')
+        img1 = f'{i:06}.png'
         img_list.append(img1)
     return img_list
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--root_dir', default='..')
-    parser.add_argument('--seq_dir', default='frames')
+    parser.add_argument('--seq_dir', default='../frames')
     parser.add_argument('--start_idx', type=int, default=1100)     # starting index of the image sequence
     parser.add_argument('--end_idx', type=int, default=1120)    # ending index of the image sequence
-    parser.add_argument('--viz_root_dir', default='../viz_results')
+    parser.add_argument('--flow_dir', type=str, default='../flow_results')
+    parser.add_argument('--viz_dir', type=str, default='../viz_results')
     parser.add_argument('--cpu', action='store_true')
+    parser.add_argument('--gen_flow', action='store_true')
 
     args = parser.parse_args()
     args.device = 'cpu' if args.cpu else 'cuda'
     args.alpha = 0.3
 
-    root_dir = args.root_dir
-    viz_root_dir = args.viz_root_dir
+    root_dir = args.seq_dir
+    flow_dir = args.flow_dir
+    viz_dir = args.viz_dir
+    img_size = (160, 90)
 
-    model = build_model(args.device)
-
-    img_list = generate_list(args.seq_dir, args.start_idx, args.end_idx, 1)
-    sd_flow(root_dir, viz_root_dir, model, img_list, args.alpha, args.device)
+    img_list = generate_list(args.start_idx, args.end_idx, 1)
+    
+    if args.gen_flow:
+        model = build_model(args.device)
+        gen_flow(root_dir, flow_dir, model, img_list, img_size, args.device)
+    else:
+        if flow_dir is not None:
+            model = None
+        else:
+            model = build_model(args.device)
+        sd_flow(root_dir, flow_dir, viz_dir, model, img_list, args.alpha, img_size, args.device)
