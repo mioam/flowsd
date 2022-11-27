@@ -174,8 +174,8 @@ def sd_flow(root_dir, flow_dir, viz_dir, model, img_list, alpha, img_size, devic
 
         res = api.img2img([Image.fromarray(np.uint8(image_sd*255))],
                 denoising_strength=0.3,
-                width=1024,
-                height=576,)
+                width=img_size[0],
+                height=img_size[1],)
         image_sd = np.asarray(res.images[0]) / 255.
         plt.imsave(viz_fn, image_sd)
         image_pre = image
@@ -196,8 +196,8 @@ if __name__ == '__main__':
     parser.add_argument('--viz_dir', type=str, default='../viz_results')
     parser.add_argument('--cpu', action='store_true')
     parser.add_argument('--gen_flow', action='store_true')
-    parser.add_argument('--H', type=int, default=900)
-    parser.add_argument('--W', type=int, default=1200)
+    parser.add_argument('--H', type=int, default=576)
+    parser.add_argument('--W', type=int, default=1024)
 
     args = parser.parse_args()
     args.device = 'cpu' if args.cpu else 'cuda'
