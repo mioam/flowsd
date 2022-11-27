@@ -196,6 +196,8 @@ if __name__ == '__main__':
     parser.add_argument('--viz_dir', type=str, default='../viz_results')
     parser.add_argument('--cpu', action='store_true')
     parser.add_argument('--gen_flow', action='store_true')
+    parser.add_argument('--H', type=int, default=900)
+    parser.add_argument('--W', type=int, default=1200)
 
     args = parser.parse_args()
     args.device = 'cpu' if args.cpu else 'cuda'
@@ -204,7 +206,7 @@ if __name__ == '__main__':
     root_dir = args.seq_dir
     flow_dir = args.flow_dir
     viz_dir = args.viz_dir
-    img_size = (160, 90)
+    img_size = (args.W, args.H)
 
     img_list = generate_list(args.start_idx, args.end_idx, 1)
     
